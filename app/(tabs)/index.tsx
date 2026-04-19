@@ -1,23 +1,24 @@
-import { useState } from "react";
+import TimerCard from "@/components/TimerCard";
+import { useTimers } from "@/hooks/useTimers";
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  TouchableOpacity
 } from "react-native";
-import TimerCard from "./components/TimerCard";
 
 export default function HomeScreen() {
-  const [timers, setTimers] = useState([{ id: "1" }]);
+  const { timers, loaded, addTimer, deleteTimer, updateTimer } = useTimers();
 
-  const addTimer = () => {
-    setTimers((prev) => [...prev, { id: Date.now().toString() }]);
-  };
-
-  const deleteTimer = (id: string) => {
-    setTimers((prev) => prev.filter((t) => t.id !== id));
-  };
+  if (!loaded) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ActivityIndicator style={{ marginTop: 40 }} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -25,7 +26,12 @@ export default function HomeScreen() {
         <Text style={styles.heading}>Мои таймеры</Text>
 
         {timers.map((t) => (
-          <TimerCard key={t.id} id={t.id} onDelete={deleteTimer} />
+          <TimerCard
+            key={t.id}
+            timer={t}
+            onUpdate={updateTimer}
+            onDelete={deleteTimer}
+          />
         ))}
 
         <TouchableOpacity style={styles.addBtn} onPress={addTimer}>

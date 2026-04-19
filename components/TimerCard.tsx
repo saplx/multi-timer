@@ -1,35 +1,60 @@
+import { TimerData } from "@/hooks/useTimers";
 import { useEffect, useRef, useState } from "react";
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type Props = {
-  id: string;
+  timer: TimerData;
+  onUpdate: (id: string, patch: Partial<TimerData>) => void;
   onDelete: (id: string) => void;
 };
 
-export default function TimerCard({ id, onDelete }: Props) {
-  const [seconds, setSeconds] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-  const [taskName, setTaskName] = useState("");
+export default function TimerCard({ timer, onUpdate, onDelete }: Props) {
+  const { id, taskName, seconds, startedAt } = timer;
+
+  // Локальный display-счётчик — тикает каждую секунду
+  const [displaySeconds, setDisplaySeconds] = useState(
+    startedAt ? seconds + Math.floor((Date.now() - startedAt) / 1000) : seconds,
+  );
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRunning = startedAt !== null;
 
   useEffect(() => {
     if (isRunning) {
       intervalRef.current = setInterval(() => {
-        setSeconds((s) => s + 1);
+        setDisplaySeconds(
+          seconds + Math.floor((Date.now() - startedAt!) / 1000),
+        );
       }, 1000);
     } else {
+      setDisplaySeconds(seconds);
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isRunning]);
+  }, [isRunning, seconds, startedAt]);
+
+  const toggleTimer = () => {
+    if (isRunning) {
+      // Пауза: фиксируем накопленное время
+      const accumulated =
+        seconds + Math.floor((Date.now() - startedAt!) / 1000);
+      onUpdate(id, { seconds: accumulated, startedAt: null });
+    } else {
+      // Старт: запоминаем timestamp
+      onUpdate(id, { startedAt: Date.now() });
+    }
+  };
+
+  const reset = () => {
+    onUpdate(id, { seconds: 0, startedAt: null });
+  };
 
   const format = (s: number) => {
     const m = Math.floor(s / 60)
@@ -39,11 +64,6 @@ export default function TimerCard({ id, onDelete }: Props) {
     return `${m}:${sec}`;
   };
 
-  const reset = () => {
-    setIsRunning(false);
-    setSeconds(0);
-  };
-
   return (
     <View style={styles.card}>
       <TextInput
@@ -51,17 +71,17 @@ export default function TimerCard({ id, onDelete }: Props) {
         placeholder="Название задачи"
         placeholderTextColor="#aaa"
         value={taskName}
-        onChangeText={setTaskName}
+        onChangeText={(text) => onUpdate(id, { taskName: text })}
       />
 
       <Text style={[styles.timer, !isRunning && styles.timerPaused]}>
-        {format(seconds)}
+        {format(displaySeconds)}
       </Text>
 
       <View style={styles.row}>
         <TouchableOpacity
           style={[styles.btn, isRunning ? styles.btnPause : styles.btnStart]}
-          onPress={() => setIsRunning((r) => !r)}
+          onPress={toggleTimer}
         >
           <Text style={styles.btnText}>
             {isRunning ? "⏸ Пауза" : "▶ Старт"}
@@ -108,14 +128,8 @@ const styles = StyleSheet.create({
     color: "#000",
     marginVertical: 8,
   },
-  timerPaused: {
-    color: "#888",
-  },
-  row: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 12,
-  },
+  timerPaused: { color: "#888" },
+  row: { flexDirection: "row", gap: 8, marginTop: 12 },
   btn: {
     flex: 1,
     paddingVertical: 9,
@@ -124,20 +138,8 @@ const styles = StyleSheet.create({
     borderColor: "#ccc",
     alignItems: "center",
   },
-  btnStart: {
-    backgroundColor: "#e8f4ff",
-    borderColor: "#90c0f0",
-  },
-  btnPause: {
-    backgroundColor: "#fff0f0",
-    borderColor: "#f0a0a0",
-  },
-  btnDelete: {
-    flex: 0,
-    paddingHorizontal: 14,
-  },
-  btnText: {
-    fontSize: 13,
-    color: "#333",
-  },
+  btnStart: { backgroundColor: "#e8f4ff", borderColor: "#90c0f0" },
+  btnPause: { backgroundColor: "#fff0f0", borderColor: "#f0a0a0" },
+  btnDelete: { flex: 0, paddingHorizontal: 14 },
+  btnText: { fontSize: 13, color: "#333" },
 });
